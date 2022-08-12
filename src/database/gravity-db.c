@@ -47,7 +47,6 @@ sqlite3_stmt_vec *blacklist_stmt = NULL;
 static sqlite3 *gravity_db = NULL;
 static sqlite3_stmt* table_stmt = NULL;
 static sqlite3_stmt* auditlist_stmt = NULL;
-bool gravityDB_opened = false;
 
 // Table names corresponding to the enum defined in gravity-db.h
 static const char* tablename[] = { "vw_gravity", "vw_blacklist", "vw_whitelist", "vw_regex_blacklist", "vw_regex_whitelist" , "" };
@@ -84,7 +83,6 @@ void gravityDB_forked(void)
 	// afterwards (independently once in the parent, once in the fork). It
 	// is clear that this in not what we want to do as this is a slow
 	// process and many TCP queries could lead to a DoS attack.
-	gravityDB_opened = false;
 	gravity_db = NULL;
 
 	// Also pretend we have not yet prepared the list statements
@@ -107,7 +105,7 @@ bool gravityDB_open(void)
 		return false;
 	}
 
-	if(gravityDB_opened && gravity_db != NULL)
+	if(gravity_db != NULL)
 	{
 		if(config.debug & DEBUG_DATABASE)
 			logg("gravityDB_open(): Database already connected");
@@ -123,9 +121,6 @@ bool gravityDB_open(void)
 		gravityDB_close();
 		return false;
 	}
-
-	// Database connection is now open
-	gravityDB_opened = true;
 
 	// Tell SQLite3 to store temporary tables in memory. This speeds up read operations on
 	// temporary tables, indices, and views.
@@ -254,7 +249,7 @@ static bool get_client_groupids(clientsData* client)
 	client->groupspos = 0u;
 
 	// Do not proceed when database is not available
-	if(!gravityDB_opened && !gravityDB_open())
+	if(!gravity_db && !gravityDB_open())
 	{
 		logg("get_client_groupids(): Gravity database not available");
 		return false;
@@ -844,7 +839,7 @@ char* __attribute__ ((malloc)) get_client_names_from_ids(const char *group_ids)
 bool gravityDB_prepare_client_statements(clientsData *client)
 {
 	// Return early if gravity database is not available
-	if(!gravityDB_opened && !gravityDB_open())
+	if(!gravity_db && !gravityDB_open())
 		return false;
 
 	const char *clientip = getstr(client->ippos);
@@ -945,7 +940,7 @@ static inline void gravityDB_finalize_client_statements(clientsData *client)
 void gravityDB_close(void)
 {
 	// Return early if gravity database is not available
-	if(!gravityDB_opened)
+	if(!gravity_db)
 		return;
 
 	// Finalize prepared list statements for all clients
@@ -968,14 +963,13 @@ void gravityDB_close(void)
 	// Close table
 	sqlite3_close(gravity_db);
 	gravity_db = NULL;
-	gravityDB_opened = false;
 }
 
 // Prepare a SQLite3 statement which can be used by gravityDB_getDomain() to get
 // blocking domains from a table which is specified when calling this function
 bool gravityDB_getTable(const unsigned char list)
 {
-	if(!gravityDB_opened && !gravityDB_open())
+	if(!gravity_db && !gravityDB_open())
 	{
 		logg("gravityDB_getTable(%u): Gravity database not available", list);
 		return false;
@@ -1058,7 +1052,7 @@ inline const char* gravityDB_getDomain(int *rowid)
 // Finalize statement of a gravity database transaction
 void gravityDB_finalizeTable(void)
 {
-	if(!gravityDB_opened)
+	if(!gravity_db)
 		return;
 
 	// Finalize statement
@@ -1070,7 +1064,7 @@ void gravityDB_finalizeTable(void)
 // the constant DB_FAILED and log to FTL.log if we encounter any error
 int gravityDB_count(const enum gravity_tables list)
 {
-	if(!gravityDB_opened && !gravityDB_open())
+	if(!gravity_db && !gravityDB_open())
 	{
 		logg("gravityDB_count(%d): Gravity database not available", list);
 		return DB_FAILED;
@@ -1149,7 +1143,7 @@ int gravityDB_count(const enum gravity_tables list)
 static enum db_result domain_in_list(const char *domain, sqlite3_stmt *stmt, const char *listname)
 {
 	// Do not try to bind text to statement when database is not available
-	if(!gravityDB_opened && !gravityDB_open())
+	if(!gravity_db && !gravityDB_open())
 	{
 		logg("Gravity database not available (%s)", listname);
 		return LIST_NOT_AVAILABLE;
