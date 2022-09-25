@@ -999,7 +999,7 @@ void set_per_client_regex(const int clientID, const int regexID, const bool valu
 	((bool*) shm_per_client_regex.ptr)[id] = value;
 }
 
-static inline bool check_range(int ID, int MAXID, const char* type, const char *func, int line, const char *file)
+static inline bool check_range(const int ID, const int MAXID, const char* type, const char *func, int line, const char *file)
 {
 	// Check bounds
 	if(ID < 0 || ID > MAXID)
@@ -1008,12 +1008,14 @@ static inline bool check_range(int ID, int MAXID, const char* type, const char *
 		logg("       found in %s() (%s:%i)", func, short_path(file), line);
 		return false;
 	}
+	if(config.debug & DEBUG_SHMEM)
+		logg("Range check is OKAY (0 <= %d <= %d)", ID, MAXID);
 
 	// Everything okay
 	return true;
 }
 
-static inline bool check_magic(int ID, bool checkMagic, unsigned char magic, const char *type, const char *func, int line, const char *file)
+static inline bool check_magic(const int ID, bool checkMagic, unsigned char magic, const char *type, const char *func, int line, const char *file)
 {
 	// Check magic only if requested (skipped for new entries which are uninitialized)
 	if(checkMagic && magic != MAGICBYTE)
@@ -1022,6 +1024,8 @@ static inline bool check_magic(int ID, bool checkMagic, unsigned char magic, con
 		logg("       found in %s() (%s:%i)", func, short_path(file), line);
 		return false;
 	}
+	if(config.debug & DEBUG_SHMEM)
+		logg("Magic byte check is OKAY");
 
 	// Everything okay
 	return true;
@@ -1044,7 +1048,11 @@ queriesData* _getQuery(int queryID, bool checkMagic, int line, const char *func,
 
 	if(check_range(queryID, counters->queries_MAX, "query", func, line, file) &&
 	   check_magic(queryID, checkMagic, queries[queryID].magic, "query", func, line, file))
+	{
+		if(config.debug & DEBUG_SHMEM)
+			logg("Returning %p", &queries[queryID]);
 		return &queries[queryID];
+	}
 	else
 		return NULL;
 }
@@ -1066,7 +1074,11 @@ clientsData* _getClient(int clientID, bool checkMagic, int line, const char *fun
 
 	if(check_range(clientID, counters->clients_MAX, "client", func, line, file) &&
 	   check_magic(clientID, checkMagic, clients[clientID].magic, "client", func, line, file))
+	{
+		if(config.debug & DEBUG_SHMEM)
+			logg("Returning %p", &clients[clientID]);
 		return &clients[clientID];
+	}
 	else
 		return NULL;
 }
@@ -1088,7 +1100,11 @@ domainsData* _getDomain(int domainID, bool checkMagic, int line, const char *fun
 
 	if(check_range(domainID, counters->domains_MAX, "domain", func, line, file) &&
 	   check_magic(domainID, checkMagic, domains[domainID].magic, "domain", func, line, file))
+	{
+		if(config.debug & DEBUG_SHMEM)
+			logg("Returning %p", &domains[domainID]);
 		return &domains[domainID];
+	}
 	else
 		return NULL;
 }
@@ -1110,7 +1126,11 @@ upstreamsData* _getUpstream(int upstreamID, bool checkMagic, int line, const cha
 
 	if(check_range(upstreamID, counters->upstreams_MAX, "upstream", func, line, file) &&
 	   check_magic(upstreamID, checkMagic, upstreams[upstreamID].magic, "upstream", func, line, file))
+	{
+		if(config.debug & DEBUG_SHMEM)
+			logg("Returning %p", &upstreams[upstreamID]);
 		return &upstreams[upstreamID];
+	}
 	else
 		return NULL;
 }
@@ -1132,7 +1152,11 @@ DNSCacheData* _getDNSCache(int cacheID, bool checkMagic, int line, const char *f
 
 	if(check_range(cacheID, counters->dns_cache_MAX, "dns_cache", func, line, file) &&
 	   check_magic(cacheID, checkMagic, dns_cache[cacheID].magic, "dns_cache", func, line, file))
+	{
+		if(config.debug & DEBUG_SHMEM)
+			logg("Returning %p", &dns_cache[cacheID]);
 		return &dns_cache[cacheID];
+	}
 	else
 		return NULL;
 }
