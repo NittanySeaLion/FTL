@@ -88,7 +88,7 @@ static int check_space(const char *file, int LastUsage)
 	perc = get_filepath_usage(file, buffer);
 	if(perc > config.check.disk && perc > LastUsage )
 		log_resource_shortage(-1.0, 0, -1, perc, file, buffer);
-	
+
 	return perc;
 }
 

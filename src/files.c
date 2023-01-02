@@ -153,7 +153,7 @@ void ls_dir(const char* path)
 
 int get_path_usage(const char *path, char buffer[64])
 {
-	// Get filesystem information about /dev/shm (typically a tmpfs)
+	// Get filesystem information about the specified path
 	struct statvfs f;
 	if(statvfs(path, &f) != 0)
 	{
@@ -165,19 +165,42 @@ int get_path_usage(const char *path, char buffer[64])
 
 	// Explicitly cast the block counts to unsigned long long to avoid
 	// overflowing with drives larger than 4 GB on 32bit systems
-	const unsigned long long size = (unsigned long long)f.f_blocks * f.f_frsize;
-	const unsigned long long free = (unsigned long long)f.f_bavail * f.f_bsize;
-	const unsigned long long used = size - free;
+	const unsigned long long total_bytes = (unsigned long long)f.f_blocks * f.f_frsize;
+	const unsigned long long free_bytes = (unsigned long long)f.f_bavail * f.f_bsize;
+	const unsigned long long used_bytes = total_bytes - free_bytes;
+
+	// This should never be an issue, but we know that it is on MacOS + docker
+	// (see https://github.com/pi-hole/docker-pi-hole/issues/951)
+	logg("Please report this to the issue on GitHub:");
+	logg("  path: %s", path);
+	logg("  used_bytes = %llu", used_bytes);
+	logg("  total_bytes = %llu", total_bytes);
+	logg("  free_bytes == %llu", free_bytes);
+	logg("  percent = %.1f%%", 100.0*(double)used_bytes / (double)total_bytes);
+	logg("  f_bavail: %llu", (unsigned long long)f.f_bavail);
+	logg("  f_bfree: %llu", (unsigned long long)f.f_bfree);
+	logg("  f_blocks: %llu", (unsigned long long)f.f_blocks);
+	logg("  f_bsize: %llu", (unsigned long long)f.f_bsize);
+	logg("  f_favail: %llu", (unsigned long long)f.f_favail);
+	logg("  f_ffree: %llu", (unsigned long long)f.f_ffree);
+	logg("  f_files: %llu", (unsigned long long)f.f_files);
+	logg("  f_flag: %llu", (unsigned long long)f.f_flag);
+	logg("  f_frsize: %llu", (unsigned long long)f.f_frsize);
+	logg("  f_fsid: %llu", (unsigned long long)f.f_fsid);
+	logg("  f_namemax: %llu", (unsigned long long)f.f_namemax);
+	logg("  f_bavail * f_bsize = %llu", (unsigned long long)f.f_bavail * f.f_bsize);
+	logg("  f_bfree * f_bsize = %llu", (unsigned long long)f.f_bfree * f.f_bsize);
+	logg("  f_blocks * f_frsize = %llu", (unsigned long long)f.f_blocks * f.f_frsize);
 
 	// Create human-readable total size
 	char prefix_size[2] = { 0 };
 	double formatted_size = 0.0;
-	format_memory_size(prefix_size, size, &formatted_size);
+	format_memory_size(prefix_size, total_bytes, &formatted_size);
 
 	// Generate human-readable "total used" size
 	char prefix_used[2] = { 0 };
 	double formatted_used = 0.0;
-	format_memory_size(prefix_used, used, &formatted_used);
+	format_memory_size(prefix_used, used_bytes, &formatted_used);
 
 	// Print result into buffer passed to this subroutine
 	snprintf(buffer, 64, "%s: %.1f%sB used, %.1f%sB total", path,
@@ -185,7 +208,7 @@ int get_path_usage(const char *path, char buffer[64])
 
 	// Return percentage of used shared memory
 	// Adding 1 avoids FPE if the size turns out to be zero
-	return (used*100)/(size + 1);
+	return (used_bytes*100)/(total_bytes + 1);
 }
 
 int get_filepath_usage(const char *file, char buffer[64])
