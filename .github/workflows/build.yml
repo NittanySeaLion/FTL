@@ -96,25 +96,27 @@ jobs:
         name: Print directory contents
         run: ls -l
       -
+        uses: Wandalen/wretry.action@master
         name: Build and test FTL in ftl-build container (QEMU)
-        uses: docker/build-push-action@v4.0.0
         with:
-          # tags: ghcr.io/pi-hole/ftl-build:v2.0
-          platforms: ${{ matrix.platform }}
-          # Always load latest container image
-          pull: true
-          # Do not push anything
-          push: false
-          context: .
-          target: result
-          file: .github/Dockerfile
-          outputs: |
-            type=tar,dest=build.tar
-          build-args: |
-            "BUILDER=${{ matrix.builder }}"
-            "CI_ARCH=${{ matrix.platform }}"
-            "GIT_BRANCH=${{ needs.smoke-tests.outputs.GIT_BRANCH }}"
-            "GIT_TAG=${{ needs.smoke-tests.outputs.GIT_TAG }}"
+          action: docker/build-push-action@v4.0.0
+          with: |
+            # tags: ghcr.io/pi-hole/ftl-build:v2.0
+            platforms: ${{ matrix.platform }}
+            # Always load latest container image
+            pull: true
+            # Do not push anything
+            push: false
+            context: .
+            target: result
+            file: .github/Dockerfile
+            outputs: |
+              type=tar,dest=build.tar
+            build-args: |
+              "BUILDER=${{ matrix.builder }}"
+              "CI_ARCH=${{ matrix.platform }}"
+              "GIT_BRANCH=${{ needs.smoke-tests.outputs.GIT_BRANCH }}"
+              "GIT_TAG=${{ needs.smoke-tests.outputs.GIT_TAG }}"
       -
         name: List files in current directory
         run: ls -l
