@@ -377,6 +377,25 @@ void parse_args(int argc, char* argv[])
 		exit(run_arp_scan(scan_all, extreme_mode));
 	}
 
+	// Backtrace generation
+	if(argc > 1 && strcmp(argv[1], "backtrace") == 0)
+	{
+		// Enable stdout printing
+		cli_mode = true;
+		generate_backtrace();
+		exit(EXIT_SUCCESS);
+	}
+
+	// Test crash generation
+	if(argc > 1 && strcmp(argv[1], "crash") == 0)
+	{
+		// Enable stdout printing
+		cli_mode = true;
+		// Force SEGV_MAPERR (Address not mapped to object)
+		*((int*)0x1555) = 0x15;
+		exit(EXIT_SUCCESS);
+	}
+
 	// start from 1, as argv[0] is the executable name
 	for(int i = 1; i < argc; i++)
 	{

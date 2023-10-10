@@ -322,6 +322,17 @@ if(DEFINED ENV{CI_ARCH})
   endif()
 endif()
 
+find_library(LIBBACKTRACE NAMES libbacktrace${CMAKE_STATIC_LIBRARY_SUFFIX} backtrace)
+if(LIBBACKTRACE)
+    message(STATUS "Building FTL with libbacktrace support: YES")
+    target_compile_definitions(FTL PRIVATE USE_LIBBACKTRACE)
+    target_compile_definitions(pihole-FTL PRIVATE USE_LIBBACKTRACE)
+    target_link_libraries(pihole-FTL ${LIBBACKTRACE})
+else()
+    message(STATUS "Building FTL with libbacktrace support: NO")
+endif()
+
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "..." FORCE)
 endif()

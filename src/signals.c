@@ -11,6 +11,9 @@
 #include "FTL.h"
 #if defined(__GLIBC__)
 #include <execinfo.h>
+#else
+#include <backtrace.h>
+#include <backtrace-supported.h>
 #endif
 #include "signals.h"
 // logging routines
@@ -89,6 +92,46 @@ static void print_addr2line(const char *symbol, const void *address, const int j
 }
 #endif
 
+#if !defined(__GLIBC__)
+// Global libbacktrace state
+static struct backtrace_state *state;
+
+// Error callback function for backtrace_full()
+static void error_callback (void *data, const char *message, int error_number)
+{
+	if (error_number == -1)
+	{
+		log_err("If you want backtraces, you have to compile FTL with -g");
+		_Exit(1);
+	}
+	log_err("Backtrace error %d: %s", error_number, message);
+}
+
+// Symbol info callback function for backtrace_full()
+static void syminfo_callback(void *data, uintptr_t pc, const char *symname, uintptr_t symval, uintptr_t symsize)
+{
+	log_info("         symbol: %s+0x%zx (0x%zx)", symname, (size_t)(pc - symval), symsize);
+}
+
+// Full backtrace callback function for backtrace_full()
+static int full_callback (void *data, uintptr_t pc, const char *pathname, int line_number, const char *function) {
+	static unsigned int stackframe = 0;
+
+	// Skip unknown frames
+	if (pathname == NULL && function == NULL && line_number == 0)
+	{
+		log_info("B[%04u]: ...", stackframe++);
+		return 0;
+	}
+
+	log_info("B[%04u]: %s(%p) @ %s:%d", stackframe++, function, (void*)pc, pathname, line_number);
+	backtrace_syminfo(state, pc, syminfo_callback, error_callback, NULL);
+
+	// Request more stack frames (if available)
+	return 0;
+}
+#endif
+
 // Log backtrace
 void generate_backtrace(void)
 {
@@ -128,7 +171,7 @@ void generate_backtrace(void)
 	}
 	free(bcktrace);
 #else
-	log_info("!!! INFO: pihole-FTL has not been compiled with glibc/backtrace support, not generating one !!!");
+	backtrace_full(state, 0, full_callback, error_callback, NULL);
 #endif
 }
 
@@ -246,7 +289,7 @@ static void __attribute__((noreturn)) signal_handler(int sig, siginfo_t *si, voi
 	log_info("Thank you for helping us to improve our FTL engine!");
 
 	// Terminate main process if crash happened in a TCP worker
-	if(mpid != getpid())
+	if(mpid != getpid() && mpid != -1)
 	{
 		// This is a forked process
 		log_info("Asking parent pihole-FTL (PID %i) to shut down", (int)mpid);
@@ -319,6 +362,10 @@ static void SIGRT_handler(int signum, siginfo_t *si, void *unused)
 // Register ordinary signals handler
 void handle_signals(void)
 {
+#if !defined(__GLIBC__)
+	// Initialize libbacktrace state
+	state = backtrace_create_state(NULL, 0, error_callback, NULL);
+#endif
 	struct sigaction old_action;
 
 	const int signals[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE };
