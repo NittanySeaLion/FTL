@@ -269,6 +269,7 @@ void http_init(void)
 	const char *options[] = {
 		// All passed strings are duplicated internally. See also comment below.
 		"document_root", config.webserver.paths.webroot.v.s,
+		"error_pages", config.webserver.paths.webroot.v.s,
 		"listening_ports", config.webserver.port.v.s,
 		"decode_url", "yes",
 		"enable_directory_listing", "no",
